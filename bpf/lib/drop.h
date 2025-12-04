@@ -25,6 +25,7 @@
 
 #define NOTIFY_DROP_VER 3
 #define DROP_POLICY_PAYLOAD_SIZE	180
+#define DROP_POLICY_DNS_BLOCKED		181
 
 struct drop_notify {
 	NOTIFY_CAPTURE_HDR

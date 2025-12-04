@@ -22,6 +22,7 @@ import (
 	"github.com/cilium/cilium/pkg/maps/payloadfilter"
 	nodeTypes "github.com/cilium/cilium/pkg/node/types"
 	"github.com/cilium/cilium/pkg/option"
+	"github.com/cilium/cilium/pkg/maps/dnsfilter"
 	policyAPI "github.com/cilium/cilium/pkg/policy/api"
 	policytypes "github.com/cilium/cilium/pkg/policy/types"
 	wgTypes "github.com/cilium/cilium/pkg/wireguard/types"
@@ -79,9 +80,15 @@ func initAndValidateDaemonConfig(params daemonConfigParams) error {
 		}
 	}
 
-	if params.Config.EnablePayloadFilter {
+	if params.DaemonConfig.EnablePayloadFilter {
 		if err := d.startPayloadFilterEventListener(); err != nil {
 			log.WithError(err).Warning("Failed to start payload filter event listener")
+		}
+	}
+
+	if params.DaemonConfig.EnableDNSFilter {
+		if err := d.startDNSFilterEventListener(); err != nil {
+			log.WithError(err).Warning("Failed to start DNS filter event listener")
 		}
 	}
 
@@ -198,6 +205,61 @@ func (d *Daemon) processPayloadFilterEvents() {
 			// Example log entry format:
 			// 2024-01-15T10:30:45Z identity=12345 payload_size=2097152 limit=1048576 protocol=TCP action=DROP
 			logger.Debug("Checking for payload filter events")
+		}
+	}
+}
+
+// startDNSFilterEventListener starts listening for DNS filter events
+func (d *Daemon) startDNSFilterEventListener() error {
+	// Initialize the DNS filter maps
+	dnsfilter.Init()
+
+	// Start event processing goroutine
+	go d.processDNSFilterEvents()
+
+	log.Info("DNS filter event listener started")
+	return nil
+}
+
+// processDNSFilterEvents processes events from the eBPF DNS filter
+// Events are logged to /var/log/cilium/dns-filter-alerts.log
+func (d *Daemon) processDNSFilterEvents() {
+	// Ensure log directory exists
+	logDir := "/var/log/cilium"
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		log.WithError(err).Error("Failed to create DNS filter log directory")
+		return
+	}
+
+	logFile, err := os.OpenFile("/var/log/cilium/dns-filter-alerts.log",
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.WithError(err).Error("Failed to open DNS filter log file")
+		return
+	}
+	defer logFile.Close()
+
+	logger := log.WithField("subsystem", "dns-filter")
+
+	// In a real implementation, this would read from the DNS_EVENTS perf buffer
+	// For the structure, we're showing the event processing loop
+	
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	logger.Info("DNS filter event processing started")
+
+	for {
+		select {
+		case <-d.ctx.Done():
+			logger.Info("DNS filter event processing stopped")
+			return
+		case <-ticker.C:
+			// In real implementation: read events from perf buffer
+			// Format: timestamp, identity, domain_hash, src_ip, dst_ip, action
+			// Example log entry format:
+			// 2024-01-15T10:30:45Z identity=12345 domain_hash=3847562 domain=facebook.com src_ip=10.0.1.5 dst_ip=8.8.8.8 action=BLOCK
+			logger.Debug("Checking for DNS filter events")
 		}
 	}
 }

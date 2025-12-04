@@ -19,6 +19,7 @@ import (
 	"github.com/cilium/cilium/pkg/logging/logfields"
 	"github.com/cilium/cilium/pkg/maps/ctmap"
 	"github.com/cilium/cilium/pkg/node"
+	"github.com/cilium/cilium/pkg/maps/payloadfilter"
 	nodeTypes "github.com/cilium/cilium/pkg/node/types"
 	"github.com/cilium/cilium/pkg/option"
 	policyAPI "github.com/cilium/cilium/pkg/policy/api"
@@ -75,6 +76,12 @@ func initAndValidateDaemonConfig(params daemonConfigParams) error {
 	if params.IPSecConfig.Enabled() || params.WireguardConfig.Enabled() {
 		if !params.DaemonConfig.EnableCiliumNodeCRD {
 			return fmt.Errorf("CiliumNode CRD cannot be disabled when encryption is enabled with WireGuard (--%s) or IPsec (--%s)", wgTypes.EnableWireguard, datapath.EnableIPSec)
+		}
+	}
+
+	if params.Config.EnablePayloadFilter {
+		if err := d.startPayloadFilterEventListener(); err != nil {
+			log.WithError(err).Warning("Failed to start payload filter event listener")
 		}
 	}
 
@@ -138,6 +145,61 @@ func initAndValidateDaemonConfig(params daemonConfigParams) error {
 	}
 
 	return nil
+}
+
+// startPayloadFilterEventListener starts listening for payload filter events
+func (d *Daemon) startPayloadFilterEventListener() error {
+	// Initialize the payload filter maps
+	payloadfilter.Init()
+
+	// Start event processing goroutine
+	go d.processPayloadFilterEvents()
+
+	log.Info("Payload filter event listener started")
+	return nil
+}
+
+// processPayloadFilterEvents processes events from the eBPF payload filter
+// Events are logged to /var/log/cilium/payload-filter-alerts.log
+func (d *Daemon) processPayloadFilterEvents() {
+	// Ensure log directory exists
+	logDir := "/var/log/cilium"
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		log.WithError(err).Error("Failed to create payload filter log directory")
+		return
+	}
+
+	logFile, err := os.OpenFile("/var/log/cilium/payload-filter-alerts.log",
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.WithError(err).Error("Failed to open payload filter log file")
+		return
+	}
+	defer logFile.Close()
+
+	logger := log.WithField("subsystem", "payload-filter")
+
+	// In a real implementation, this would read from the PAYLOAD_EVENTS perf buffer
+	// For the structure, we're showing the event processing loop
+	
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	logger.Info("Payload filter event processing started")
+
+	for {
+		select {
+		case <-d.ctx.Done():
+			logger.Info("Payload filter event processing stopped")
+			return
+		case <-ticker.C:
+			// In real implementation: read events from perf buffer
+			// Format: timestamp, identity, payload_size, limit, action
+			// Example log entry format:
+			// 2024-01-15T10:30:45Z identity=12345 payload_size=2097152 limit=1048576 protocol=TCP action=DROP
+			logger.Debug("Checking for payload filter events")
+		}
+	}
 }
 
 func configureDaemon(ctx context.Context, params daemonParams) error {

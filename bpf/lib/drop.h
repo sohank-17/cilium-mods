@@ -24,6 +24,7 @@
 #include "trace_helpers.h"
 
 #define NOTIFY_DROP_VER 3
+#define DROP_POLICY_PAYLOAD_SIZE	180
 
 struct drop_notify {
 	NOTIFY_CAPTURE_HDR

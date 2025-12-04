@@ -363,6 +363,9 @@ const (
 	// EnablePayloadFilter enables packet-size based filtering
 	EnablePayloadFilter = "enable-payload-filter"
 
+	// ENableDNSFilter enables DNS domain based blocking
+	EnableDNSFilter = "enable-dns-filter"
+
 	// EnableTCX enables attaching endpoint programs using tcx if the kernel supports it
 	EnableTCX = "enable-tcx"
 
@@ -1183,6 +1186,7 @@ type DaemonConfig struct {
 	EncryptInterface   []string // Set of network facing interface to encrypt over
 	EncryptNode        bool     // Set to true for encrypting node IP traffic
 	EnablePayloadFilter bool
+	EnableDNSFilter    bool
 
 	DatapathMode string // Datapath mode
 	RoutingMode  string // Routing mode
@@ -2491,6 +2495,7 @@ func (c *DaemonConfig) Populate(logger *slog.Logger, vp *viper.Viper) {
 	c.L2AnnouncerRetryPeriod = vp.GetDuration(L2AnnouncerRetryPeriod)
 	c.EnableXDPPrefilter = vp.GetBool(EnableXDPPrefilter)
 	c.EnablePayloadFilter = vp.GetBool(EnablePayloadFilter)
+	c.EnableDNSFilter = vp.GetBlockedDomains(EnableDNSFilter)
 	c.EnableTCX = vp.GetBool(EnableTCX)
 	c.DisableCiliumEndpointCRD = vp.GetBool(DisableCiliumEndpointCRDName)
 	c.MasqueradeInterfaces = vp.GetStringSlice(MasqueradeInterfaces)

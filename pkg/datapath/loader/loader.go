@@ -44,6 +44,7 @@ import (
 	"github.com/cilium/cilium/pkg/node/manager"
 	"github.com/cilium/cilium/pkg/option"
 	"github.com/cilium/cilium/pkg/promise"
+	"github.com/cilium/cilium/pkg/maps/dnsfilter"
 	wgtypes "github.com/cilium/cilium/pkg/wireguard/types"
 )
 
@@ -250,6 +251,11 @@ func netdevRewrites(ep datapath.EndpointConfiguration, lnc *datapath.LocalNodeCo
 
 	ifindex := link.Attrs().Index
 	cfg.InterfaceIfindex = uint32(ifindex)
+	
+	if option.Config.EnableDNSFilter {
+		dnsfilter.Init()
+		log.Info("DNS filter maps initialized")
+	}
 
 	// Enable masquerading on external interfaces.
 	if option.Config.EnableBPFMasquerade {
@@ -442,6 +448,10 @@ func ciliumHostRewrites(ep datapath.EndpointConfiguration, lnc *datapath.LocalNo
 		cfg.WgPort = wgtypes.ListenPort
 	}
 
+	if option.Config.EnableDNSFilter {
+		cfg.dnsfilter = dnsfilter.Init()
+	}
+
 	if option.Config.EnableVTEP {
 		cfg.VtepMask = byteorder.NetIPv4ToHost32(net.IP(option.Config.VtepCidrMask))
 	}
@@ -453,7 +463,7 @@ func ciliumHostRewrites(ep datapath.EndpointConfiguration, lnc *datapath.LocalNo
 
 	if option.Config.EnablePayloadFilter {
 		payloadfilter.Init()
-		log.Info("Payload filter maps initialized")
+	
 	}
 
 	cfg.AllowIcmpFragNeeded = option.Config.AllowICMPFragNeeded
@@ -840,6 +850,10 @@ func replaceOverlayDatapath(ctx context.Context, logger *slog.Logger, lnc *datap
 	cfg.EnableNetkit = option.Config.DatapathMode == datapathOption.DatapathModeNetkit ||
 		option.Config.DatapathMode == datapathOption.DatapathModeNetkitL2
 
+	if option.Config.EnableDNSFilter {
+		cfg.dnsfilter = dnsfilter.Init()
+	}
+
 	if option.Config.EnableVTEP {
 		cfg.VtepMask = byteorder.NetIPv4ToHost32(net.IP(option.Config.VtepCidrMask))
 	}
@@ -881,6 +895,10 @@ func replaceOverlayDatapath(ctx context.Context, logger *slog.Logger, lnc *datap
 	if option.Config.EnablePayloadFilter {
 		payloadfilter.Init()
 		log.Info("Payload filter maps initialized")
+	}
+
+	if option.Config.EnableDNSFilter {
+		cfg.dnsfilter = dnsfilter.Init()
 	}
 
 	return nil

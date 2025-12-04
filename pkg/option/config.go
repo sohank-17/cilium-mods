@@ -360,6 +360,9 @@ const (
 	// EnableXDPPrefilter enables XDP-based prefiltering
 	EnableXDPPrefilter = "enable-xdp-prefilter"
 
+	// EnablePayloadFilter enables packet-size based filtering
+	EnablePayloadFilter = "enable-payload-filter"
+
 	// EnableTCX enables attaching endpoint programs using tcx if the kernel supports it
 	EnableTCX = "enable-tcx"
 
@@ -1179,6 +1182,7 @@ type DaemonConfig struct {
 	HostV6Addr         net.IP   // Host v6 address of the snooping device
 	EncryptInterface   []string // Set of network facing interface to encrypt over
 	EncryptNode        bool     // Set to true for encrypting node IP traffic
+	EnablePayloadFilter bool
 
 	DatapathMode string // Datapath mode
 	RoutingMode  string // Routing mode
@@ -2486,6 +2490,7 @@ func (c *DaemonConfig) Populate(logger *slog.Logger, vp *viper.Viper) {
 	c.L2AnnouncerRenewDeadline = vp.GetDuration(L2AnnouncerRenewDeadline)
 	c.L2AnnouncerRetryPeriod = vp.GetDuration(L2AnnouncerRetryPeriod)
 	c.EnableXDPPrefilter = vp.GetBool(EnableXDPPrefilter)
+	c.EnablePayloadFilter = vp.GetBool(EnablePayloadFilter)
 	c.EnableTCX = vp.GetBool(EnableTCX)
 	c.DisableCiliumEndpointCRD = vp.GetBool(DisableCiliumEndpointCRDName)
 	c.MasqueradeInterfaces = vp.GetStringSlice(MasqueradeInterfaces)

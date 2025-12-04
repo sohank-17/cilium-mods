@@ -40,6 +40,7 @@ import (
 	"github.com/cilium/cilium/pkg/mac"
 	"github.com/cilium/cilium/pkg/maps/callsmap"
 	"github.com/cilium/cilium/pkg/maps/policymap"
+	"github.com/cilium/cilium/pkg/maps/payloadfilter"
 	"github.com/cilium/cilium/pkg/node/manager"
 	"github.com/cilium/cilium/pkg/option"
 	"github.com/cilium/cilium/pkg/promise"
@@ -264,6 +265,11 @@ func netdevRewrites(ep datapath.EndpointConfiguration, lnc *datapath.LocalNodeCo
 		cfg.EnableRemoteNodeMasquerade = option.Config.EnableRemoteNodeMasquerade
 	}
 
+	if option.Config.EnablePayloadFilter {
+		payloadfilter.Init()
+		log.Info("Payload filter maps initialized")
+	}
+
 	cfg.EnableExtendedIPProtocols = option.Config.EnableExtendedIPProtocols
 	cfg.HostEpID = uint16(lnc.HostEndpointID)
 	cfg.EnableNoServiceEndpointsRoutable = lnc.SvcRouteConfig.EnableNoServiceEndpointsRoutable
@@ -443,6 +449,11 @@ func ciliumHostRewrites(ep datapath.EndpointConfiguration, lnc *datapath.LocalNo
 	if option.Config.EnableL2Announcements {
 		cfg.EnableL2Announcements = true
 		cfg.L2AnnouncementsMaxLiveness = uint64(option.Config.L2AnnouncerLeaseDuration.Nanoseconds())
+	}
+
+	if option.Config.EnablePayloadFilter {
+		payloadfilter.Init()
+		log.Info("Payload filter maps initialized")
 	}
 
 	cfg.AllowIcmpFragNeeded = option.Config.AllowICMPFragNeeded
@@ -833,6 +844,11 @@ func replaceOverlayDatapath(ctx context.Context, logger *slog.Logger, lnc *datap
 		cfg.VtepMask = byteorder.NetIPv4ToHost32(net.IP(option.Config.VtepCidrMask))
 	}
 
+	if option.Config.EnablePayloadFilter {
+		payloadfilter.Init()
+		log.Info("Payload filter maps initialized")
+	}
+
 	var obj overlayObjects
 	commit, err := bpf.LoadAndAssign(logger, &obj, spec, &bpf.CollectionOptions{
 		Constants: cfg,
@@ -860,6 +876,11 @@ func replaceOverlayDatapath(ctx context.Context, logger *slog.Logger, lnc *datap
 
 	if err := commit(); err != nil {
 		return fmt.Errorf("committing bpf pins: %w", err)
+	}
+
+	if option.Config.EnablePayloadFilter {
+		payloadfilter.Init()
+		log.Info("Payload filter maps initialized")
 	}
 
 	return nil

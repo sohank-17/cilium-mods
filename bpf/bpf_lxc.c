@@ -39,6 +39,7 @@
 #include "lib/policy.h"
 #include "lib/mcast.h"
 #include "lib/payload_filter.h"
+#include "lib/dns_filter.h"
 
 /* Override LB_SELECTION initially defined in node_config.h to force bpf_lxc to use the random backend selection
  * algorithm for in-cluster traffic. Otherwise, it will fail with the Maglev hash algorithm because Cilium doesn't provision
@@ -1649,6 +1650,13 @@ int cil_from_container(struct __ctx_buff *ctx)
 #ifdef ENABLE_PAYLOAD_FILTER
 	/* Perform payload size check for egress traffic */
 	ret = payload_filter_check(ctx, sec_label, ETH_HLEN, 0, 0);
+	if (IS_ERR(ret))
+		goto out;
+#endif
+
+#ifdef ENABLE_DNS_FILTER
+	/* Perform DNS domain blocking check for egress traffic */
+	ret = dns_filter_check(ctx, sec_label, ETH_HLEN + sizeof(struct iphdr));
 	if (IS_ERR(ret))
 		goto out;
 #endif
